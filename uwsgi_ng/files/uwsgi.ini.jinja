@@ -1,0 +1,18 @@
+[uwsgi]
+uwsgi-socket={{ uwsgi_socket }}
+chmod-socket=660
+lazy-apps=True
+pidfile={{ uwsgi_pidfile }}
+master-fifo={{ uwsgi_master_fifo }}
+wsgi={{ uwsgi_wsgi_module }}
+plugin=python
+workers={{ uwsgi_workers }}
+virtualenv={{ virtualenv }}
+uid={{ uwsgi_user }}
+gid={{ uwsgi_group }}
+{%- for key, val in env.items() %}
+env= {{ key }}={{ val }}
+{%- endfor %}
+{%- if 'DJANGO_SETTINGS_MODULE' not in env %}
+env= DJANGO_SETTINGS_MODULE={{ django_settings }}
+{%- endif %}
