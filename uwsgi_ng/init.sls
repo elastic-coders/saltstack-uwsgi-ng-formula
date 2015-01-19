@@ -2,9 +2,6 @@
 {% from "nginx/ng/map.jinja" import nginx with context %}
 {% set settings = salt['pillar.get']('uwsgi_ng') %}
 
-include:
-  - python
-
 # install uwsgi globally
 # TODO: optionally install uwsgi in a separate virtualenv
 uwsgi-installed:
