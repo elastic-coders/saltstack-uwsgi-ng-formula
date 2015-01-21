@@ -9,6 +9,7 @@ uwsgi-installed:
      - names:
        - uwsgi
        - uwsgi-plugin-python
+       - python-virtualenv
 
 {% macro get_app_archive_dir(app) -%}
    {{ settings.apps.managed.get(app).get('archive_dir', 'salt://dist/' ~ app ~ '/master') }}
@@ -28,11 +29,14 @@ uwsgi-installed:
 {% macro get_app_base_package_name(app) -%}
    {{ settings.apps.managed.get(app).get('base_package_name', get_app_package_name(app).replace('-', '_')) }}
 {%- endmacro %}
+{% macro get_app_frontend_dir(app) -%}
+   {{ settings.apps.managed.get(app).get('frontend') }}
+{%- endmacro %}
 {% macro get_app_wheelhouse(app) -%}
    {{ get_app_dist_dir(app) ~ '/wheelhouse' }}
 {%- endmacro %}
 {% macro get_app_frontend_dist_dir(app) -%}
-   {{ get_app_dist_dir(app) ~ '/frontend' }}
+   {% if get_app_frontend_dir(app) %}{{ get_app_dist_dir(app) ~ get_app_frontend_dir(app) }}{% endif %}
 {%- endmacro %}
 {% macro get_app_uwsgi_config_template(app) -%}
    {{ settings.apps.managed.get(app).get('config_template', 'salt://uwsgi_ng/files/uwsgi.ini.jinja') }}
@@ -57,6 +61,12 @@ uwsgi-installed:
 {%- endmacro %}
 {% macro get_app_uwsgi_wsgi_module(app) -%}
    {{ settings.apps.managed.get(app).get('wsgi_module', get_app_base_package_name(app) ~ ".wsgi") }}
+{%- endmacro %}
+{% macro get_app_uwsgi_upstart_config(app) -%}
+   {{ settings.apps.managed.get(app).get('upstart_config', '/etc/init/uwsgi.conf') }}
+{%- endmacro %}
+{% macro get_app_uwsgi_upstart_template(app) -%}
+   {{ settings.apps.managed.get(app).get('upstart_template', 'salt://uwsgi_ng/files/etc_init_uwsgi.conf.jinja') }}
 {%- endmacro %}
 {% macro get_app_static_dir(app) -%}
    {{ settings.apps.managed.get(app).get('static_dir', get_app_home_dir(app) ~ "/static") }}
@@ -85,6 +95,8 @@ uwsgi-installed:
    {% set wheelhouse = get_app_wheelhouse(app) %}
    {% set uwsgi_config_template = get_app_uwsgi_config_template(app) %}
    {% set uwsgi_config = get_app_uwsgi_config(app) %}
+   {% set uwsgi_upstart_template = get_app_uwsgi_upstart_template(app) %}
+   {% set uwsgi_upstart_config = get_app_uwsgi_upstart_config(app) %}
    {% set uwsgi_control_dir = get_app_uwsgi_control_dir(app) %}
    {% set uwsgi_socket = get_app_uwsgi_socket(app) %}
    {% set uwsgi_master_fifo = get_app_uwsgi_master_fifo(app) %}
@@ -169,10 +181,12 @@ app-{{ app }}-uwsgi-config:
             DJANGO_MEDIA_ROOT: {{ media_dir }}
             DJANGO_DATA_ROOT: {{ data_dir }}
 
+{% if frontend_dist -%}
 # collect assets for frontend
 app-{{ app }}-static-frontend:
   cmd.run:
     - name: cp -r {{ frontend_dist }} {{ static_dir }}
+{% endif -%}
 
 # staticfiles
 app-{{ app }}-static-dir:
@@ -254,7 +268,7 @@ app-{{ app }}-manage-py:
     - source: salt://uwsgi_ng/files/manage.sh.jinja
     - template: jinja
     - defaults:
-         user: {{ user }} 
+         user: {{ user }}
          group: {{ nginx.lookup.webuser }}
          django_settings: {{ django_settings }}
          virtualenv: {{ virtualenv }}
@@ -266,14 +280,21 @@ app-{{ app }}-manage-py:
 
 # TODO: spawn uwsgi
 # TODO: restart uwsgi on changes
-# app-{{ app }}-uwsgi-supervisord:
-#   supervisord:
-#     - running
-#     - name:
-#     - require:
-#       - pkg: supervisor
 
-# XX temporary measure
+app-{{ app }}-uwsgi-upstart-config:
+  file.managed:
+    - name: {{ uwsgi_upstart_config }}
+    - source: {{ uwsgi_upstart_template }}
+    - user: root
+    - group: root
+    - mode: 644
+    - template: jinja
+    - require:
+        - pip: app-{{ app }}-virtualenv-pip
+    - defaults:
+        uwsgi_config: {{ uwsgi_config }}
+
+# XXX temporary measure
 app-{{ app }}-uwsgi-restart:
   cmd.run:
     - name: echo c > {{ uwsgi_master_fifo }}
