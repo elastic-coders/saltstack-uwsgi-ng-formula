@@ -278,9 +278,6 @@ app-{{ app }}-manage-py:
              DJANGO_MEDIA_ROOT: {{ media_dir }}
              DJANGO_DATA_ROOT: {{ data_dir }}
 
-# TODO: spawn uwsgi
-# TODO: restart uwsgi on changes
-
 app-{{ app }}-uwsgi-upstart-config:
   file.managed:
     - name: {{ uwsgi_upstart_config }}
@@ -294,13 +291,13 @@ app-{{ app }}-uwsgi-upstart-config:
     - defaults:
         uwsgi_config: {{ uwsgi_config }}
 
-# XXX temporary measure
-app-{{ app }}-uwsgi-restart:
-  cmd.run:
-    - name: echo c > {{ uwsgi_master_fifo }}
-    - timeout: 5
-    - require:
-      - pip: app-{{ app }}-virtualenv-pip
+
+app-{{ app }}-uwsgi-upstart-run:
+  service.running:
+    - name: uwsgi
+    - provider: upstart
+    - watch:
+      - file: app-{{ app }}-uwsgi-upstart-config
 
 
 {% endwith %}
