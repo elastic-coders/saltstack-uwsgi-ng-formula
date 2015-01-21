@@ -30,7 +30,7 @@ uwsgi-installed:
    {{ settings.apps.managed.get(app).get('base_package_name', get_app_package_name(app).replace('-', '_')) }}
 {%- endmacro %}
 {% macro get_app_frontend_dir(app) -%}
-   {{ settings.apps.managed.get(app).get('frontend') }}
+   {{ settings.apps.managed.get(app).get('frontend', '') }}
 {%- endmacro %}
 {% macro get_app_wheelhouse(app) -%}
    {{ get_app_dist_dir(app) ~ '/wheelhouse' }}
@@ -110,6 +110,16 @@ uwsgi-installed:
    {% set django_settings = get_django_settings(app) %}
    {% set user = get_app_user(app) %}
 
+{% macro app_env() %}
+DJANGO_HOME_DIR: {{ home_dir }}
+DJANGO_STATIC_ROOT: {{ static_dir }}
+DJANGO_MEDIA_ROOT: {{ media_dir }}
+DJANGO_DATA_ROOT: {{ data_dir }}
+{%- for key, val in settings.apps.managed.get(app).get('env', {}).iteritems() %}
+{{ key }}: "{{ val }}" {# TODO: escape double quotes in val #}
+{%- endfor %}
+{% endmacro %}
+
 app-{{ app }}-dist-extracted:
   file.recurse:
     - name: {{ dist }}
@@ -176,10 +186,7 @@ app-{{ app }}-uwsgi-config:
         uwsgi_group: {{ nginx.lookup.webuser }}
         django_settings: {{ django_settings }}
         env:
-            DJANGO_HOME_DIR: {{ home_dir }}
-            DJANGO_STATIC_ROOT: {{ static_dir }}
-            DJANGO_MEDIA_ROOT: {{ media_dir }}
-            DJANGO_DATA_ROOT: {{ data_dir }}
+            {{ app_env()|indent(12) }}
 
 {% if frontend_dist -%}
 # collect assets for frontend
@@ -268,15 +275,12 @@ app-{{ app }}-manage-py:
     - source: salt://uwsgi_ng/files/manage.sh.jinja
     - template: jinja
     - defaults:
-         user: {{ user }}
-         group: {{ nginx.lookup.webuser }}
-         django_settings: {{ django_settings }}
-         virtualenv: {{ virtualenv }}
-         env:
-             DJANGO_HOME_DIR: {{ home_dir }}
-             DJANGO_STATIC_ROOT: {{ static_dir }}
-             DJANGO_MEDIA_ROOT: {{ media_dir }}
-             DJANGO_DATA_ROOT: {{ data_dir }}
+        user: {{ user }}
+        group: {{ nginx.lookup.webuser }}
+        django_settings: {{ django_settings }}
+        virtualenv: {{ virtualenv }}
+        env:
+            {{ app_env()|indent(12) }}
 
 app-{{ app }}-uwsgi-upstart-config:
   file.managed:
