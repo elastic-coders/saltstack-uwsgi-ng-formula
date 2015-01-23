@@ -279,6 +279,7 @@ app-{{ app }}-uwsgi-socket:
 app-{{ app }}-home-dir-read:
   file.directory:
     - name: {{ home_dir }}
+    - user: {{ user }}
     - group:  {{ nginx.lookup.webuser }}
     - dir_mode: 750
 
