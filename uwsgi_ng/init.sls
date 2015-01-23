@@ -26,8 +26,8 @@ uwsgi-installed:
 {% macro get_app_package_name(app) -%}
    {{ settings.apps.managed.get(app).get('package_name', app) }}
 {%- endmacro %}
-{% macro get_app_base_package_name(app) -%}
-   {{ settings.apps.managed.get(app).get('base_package_name', get_app_package_name(app).replace('-', '_')) }}
+{% macro get_app_django_project_name(app) -%}
+   {{ settings.apps.managed.get(app).get('django_project_name', get_app_package_name(app).replace('-', '_')) }}
 {%- endmacro %}
 {% macro get_app_frontend_dir(app) -%}
    {{ settings.apps.managed.get(app).get('frontend', '') }}
@@ -64,7 +64,7 @@ uwsgi-installed:
    {{ settings.apps.managed.get(app).get('workers', 4) }}
 {%- endmacro %}
 {% macro get_app_uwsgi_wsgi_module(app) -%}
-   {{ settings.apps.managed.get(app).get('wsgi_module', get_app_base_package_name(app) ~ ".wsgi") }}
+   {{ settings.apps.managed.get(app).get('wsgi_module', get_app_django_project_name(app) ~ ".wsgi") }}
 {%- endmacro %}
 {% macro get_app_uwsgi_upstart_config(app) -%}
    {{ settings.apps.managed.get(app).get('upstart_config', '/etc/init/uwsgi.conf') }}
@@ -85,7 +85,7 @@ uwsgi-installed:
    {{ settings.apps.managed.get(app).get('user', app) }}
 {%- endmacro %}
 {% macro get_django_settings(app) -%}
-   {{ settings.apps.managed.get(app).get('django_settings_module', get_app_base_package_name(app) ~ ".settings" ) }}
+   {{ settings.apps.managed.get(app).get('django_settings_module', get_app_django_project_name(app) ~ ".settings" ) }}
 {%- endmacro %}
 
 
