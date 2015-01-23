@@ -35,6 +35,10 @@ uwsgi-installed:
 {% macro get_app_wheelhouse(app) -%}
    {{ get_app_dist_dir(app) ~ '/wheelhouse' }}
 {%- endmacro %}
+{% macro get_app_pip_requirements(app) -%}
+{% set pip_requirements = settings.apps.managed.get(app).get('pip_requirements') -%}
+   {% if pip_requirements %}{{ get_app_dist_dir(app) ~ '/requirements.txt' }}{% endif %}
+{%- endmacro %}
 {% macro get_app_frontend_dist_dir(app) -%}
    {% if get_app_frontend_dir(app) %}{{ get_app_dist_dir(app) ~ get_app_frontend_dir(app) }}{% endif %}
 {%- endmacro %}
@@ -103,6 +107,7 @@ uwsgi-installed:
    {% set uwsgi_pidfile = get_app_uwsgi_pidfile(app) %}
    {% set uwsgi_workers = get_app_uwsgi_workers(app) %}
    {% set uwsgi_wsgi_module = get_app_uwsgi_wsgi_module(app) %}
+   {% set pip_requirements = get_app_pip_requirements(app) %}
    {% set static_dir = get_app_static_dir(app) %}
    {% set frontend_dist = get_app_frontend_dist_dir(app) %}
    {% set media_dir = get_app_media_dir(app) %}
@@ -151,6 +156,9 @@ app-{{ app }}-virtualenv-pip-uninstall:
 app-{{ app }}-virtualenv-pip:
   pip.installed:
     - name: {{ package_name }}
+    {%- if pip_requirements %}
+    - requirements: {{ pip_requirements }}
+    {%- endif %}
     - find_links: {{ wheelhouse }}
     - no_index: True
     - use_wheel: True
@@ -162,6 +170,19 @@ app-{{ app }}-virtualenv-pip:
         - file: app-{{ app }}-dist-extracted
         - pkg: app-{{ app }}-libraries
         - pip: app-{{ app }}-virtualenv-pip-uninstall
+
+{%- if pip_requirements %}
+app-{{ app }}-virtualenv-pip-2:
+  pip.installed:
+    - name: {{ package_name }}
+    - find_links: {{ wheelhouse }}
+    - no_index: True
+    - use_wheel: True
+    - bin_env: {{ virtualenv }}
+    - use_vt: True
+    - require:
+        - pip: app-{{ app }}-virtualenv-pip
+{% endif %}
 
 # create uwsgi configuration file
 app-{{ app }}-uwsgi-config:
@@ -175,6 +196,9 @@ app-{{ app }}-uwsgi-config:
     - makedirs: True
     - require:
         - pip: app-{{ app }}-virtualenv-pip
+        {%- if pip_requirements %}
+        - pip: app-{{ app }}-virtualenv-pip-2
+        {%- endif %}
     - defaults:
         uwsgi_socket: {{ uwsgi_socket }}
         uwsgi_pidfile: {{ uwsgi_pidfile }}

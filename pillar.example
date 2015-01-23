@@ -3,3 +3,4 @@ uwsgi_ng:
     managed:
       my_app:
         config_template: salt://my_app/files/config  # optional
+        pip_requirements: False
