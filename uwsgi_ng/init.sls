@@ -116,12 +116,12 @@ uwsgi-installed:
    {% set user = get_app_user(app) %}
 
 {% macro app_env() %}
-DJANGO_HOME_DIR: {{ home_dir }}
-DJANGO_STATIC_ROOT: {{ static_dir }}
-DJANGO_MEDIA_ROOT: {{ media_dir }}
-DJANGO_DATA_ROOT: {{ data_dir }}
+- DJANGO_HOME_DIR: {{ home_dir }}
+- DJANGO_STATIC_ROOT: {{ static_dir }}
+- DJANGO_MEDIA_ROOT: {{ media_dir }}
+- DJANGO_DATA_ROOT: {{ data_dir }}
 {%- for key, val in settings.apps.managed.get(app).get('env', {}).iteritems() %}
-{{ key }}: "{{ val }}" {# TODO: escape double quotes in val #}
+- {{ key }}: "{{ val }}" {# TODO: escape double quotes in val #}
 {%- endfor %}
 {% endmacro %}
 
@@ -231,10 +231,7 @@ app-{{ app }}-static-django:
     - name: {{ virtualenv }}/bin/django-admin.py collectstatic --noinput --settings {{ django_settings }}
     - cwd: {{ home_dir }}
     - env:
-      - DJANGO_HOME_DIR: {{ dist }}
-      - DJANGO_STATIC_ROOT: {{ static_dir }}
-      - DJANGO_MEDIA_ROOT: {{ media_dir }}
-      - DJANGO_DATA_ROOT: {{ data_dir }}
+      {{ app_env()|indent(6) }}
 
 # make staticfiles visible to nginx
 app-{{ app }}-static-django-permissions:
