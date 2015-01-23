@@ -30,7 +30,7 @@ uwsgi-installed:
    {{ settings.apps.managed.get(app).get('django_project_name', get_app_package_name(app).replace('-', '_')) }}
 {%- endmacro %}
 {% macro get_app_frontend_dir(app) -%}
-   {{ settings.apps.managed.get(app).get('frontend', '') }}
+   {{ settings.apps.managed.get(app).get('frontend_dir', '') }}
 {%- endmacro %}
 {% macro get_app_wheelhouse(app) -%}
    {{ get_app_dist_dir(app) ~ '/wheelhouse' }}
@@ -40,7 +40,7 @@ uwsgi-installed:
    {% if pip_requirements %}{{ get_app_dist_dir(app) ~ '/requirements.txt' }}{% endif %}
 {%- endmacro %}
 {% macro get_app_frontend_dist_dir(app) -%}
-   {% if get_app_frontend_dir(app) %}{{ get_app_dist_dir(app) ~ get_app_frontend_dir(app) }}{% endif %}
+   {% if get_app_frontend_dir(app) %}{{ get_app_dist_dir(app) ~ "/" ~ get_app_frontend_dir(app) }}{% endif %}
 {%- endmacro %}
 {% macro get_app_uwsgi_config_template(app) -%}
    {{ settings.apps.managed.get(app).get('config_template', 'salt://uwsgi_ng/files/uwsgi.ini.jinja') }}
@@ -152,7 +152,23 @@ app-{{ app }}-virtualenv-pip-uninstall:
      - require:
        - virtualenv: app-{{ app }}-virtualenv
 
-# install app in virtualenv
+{%- if pip_requirements %}
+app-{{ app }}-virtualenv-pip-package:
+  pip.installed:
+    - name: {{ package_name }}
+    - find_links: {{ wheelhouse }}
+    - no_index: True
+    - use_wheel: True
+    - bin_env: {{ virtualenv }}
+    - use_vt: True
+    - require:
+        - virtualenv: app-{{ app }}-virtualenv
+        - pkg: uwsgi-installed
+        - file: app-{{ app }}-dist-extracted
+        - pkg: app-{{ app }}-libraries
+        - pip: app-{{ app }}-virtualenv-pip-uninstall
+{% endif %}
+
 app-{{ app }}-virtualenv-pip:
   pip.installed:
     - name: {{ package_name }}
@@ -170,19 +186,9 @@ app-{{ app }}-virtualenv-pip:
         - file: app-{{ app }}-dist-extracted
         - pkg: app-{{ app }}-libraries
         - pip: app-{{ app }}-virtualenv-pip-uninstall
-
-{%- if pip_requirements %}
-app-{{ app }}-virtualenv-pip-2:
-  pip.installed:
-    - name: {{ package_name }}
-    - find_links: {{ wheelhouse }}
-    - no_index: True
-    - use_wheel: True
-    - bin_env: {{ virtualenv }}
-    - use_vt: True
-    - require:
-        - pip: app-{{ app }}-virtualenv-pip
-{% endif %}
+        {%- if pip_requirements %}
+        - pip: app-{{ app }}-virtualenv-pip-package
+        {%- endif %}
 
 # create uwsgi configuration file
 app-{{ app }}-uwsgi-config:
@@ -196,9 +202,6 @@ app-{{ app }}-uwsgi-config:
     - makedirs: True
     - require:
         - pip: app-{{ app }}-virtualenv-pip
-        {%- if pip_requirements %}
-        - pip: app-{{ app }}-virtualenv-pip-2
-        {%- endif %}
     - defaults:
         uwsgi_socket: {{ uwsgi_socket }}
         uwsgi_pidfile: {{ uwsgi_pidfile }}
@@ -212,18 +215,19 @@ app-{{ app }}-uwsgi-config:
         env:
             {{ app_env()|indent(12) }}
 
-{% if frontend_dist -%}
-# collect assets for frontend
-app-{{ app }}-static-frontend:
-  cmd.run:
-    - name: cp -r {{ frontend_dist }} {{ static_dir }}
-{% endif -%}
-
 # staticfiles
 app-{{ app }}-static-dir:
   file.directory:
     - name: {{ static_dir }}
     - group: {{ nginx.lookup.webuser }}
+
+# Puts the frontend near the project root to make collectstatic happy
+app-{{ app }}-static-frontend:
+  cmd.run:
+    - name: {% if frontend_dist %}cp -r {{ frontend_dist }} {{ home_dir }}{% else %} echo no frontend{% endif %}
+    - require:
+      - file: app-{{ app }}-static-dir
+      - file: app-{{ app }}-dist-extracted
 
 # collect assets from django static files
 app-{{ app }}-static-django:
@@ -232,6 +236,9 @@ app-{{ app }}-static-django:
     - cwd: {{ home_dir }}
     - env:
       {{ app_env()|indent(6) }}
+    - require:
+      - cmd: app-{{ app }}-static-frontend
+      - pip: app-{{ app }}-virtualenv-pip
 
 # make staticfiles visible to nginx
 app-{{ app }}-static-django-permissions:
