@@ -4,3 +4,8 @@ uwsgi_ng:
       my_app:
         config_template: salt://my_app/files/config  # optional
         pip_requirements: False
+        package_name: package to install
+        django_project_name: name of the django project holding settings module
+        env:                 
+          ENV_VAR_1: value
+          ENV_VAR_2: value
