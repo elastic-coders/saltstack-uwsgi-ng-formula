@@ -243,13 +243,10 @@ app-{{ app }}-static-django-permissions:
     - require:
       - cmd: app-{{ app }}-static-django
 
-# make media and data dirs
-app-{{ app }}-media-data-dirs:
+app-{{ app }}-data-dir:
   file.directory:
-    - names:
-      - {{ media_dir }}
-      - {{ data_dir }}
-    - group: {{ nginx.lookup.webuser }}
+    - name: {{ data_dir }}
+    - group: {{ user }}
     - user: {{ user }}
     - dir_mode: 750
     - file_mode: 640
@@ -258,16 +255,13 @@ app-{{ app }}-media-data-dirs:
       - group
       - mode
 
-# make uwsgi socket writable by nginx
-app-{{ app }}-uwsgi-socket:
+app-{{ app }}-media-dir:
   file.directory:
-    - names:
-      - {{ media_dir }}
-      - {{ data_dir }}
+    - name: {{ media_dir }}
     - group: {{ nginx.lookup.webuser }}
     - user: {{ user }}
-    - dir_mode: 750
-    - file_mode: 640
+    - dir_mode: 770
+    - file_mode: 660
     - recurse:
       - user
       - group
