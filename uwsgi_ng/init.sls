@@ -298,9 +298,9 @@ app-{{ app }}-uwsgi-upstart-config:
     - template: jinja
     - require:
         - pip: app-{{ app }}-virtualenv-pip
+        - file: app-{{ app }}-uwsgi-config
     - defaults:
         uwsgi_config: {{ uwsgi_config }}
-
 
 app-{{ app }}-uwsgi-upstart-run:
   service.running:
@@ -308,7 +308,16 @@ app-{{ app }}-uwsgi-upstart-run:
     - provider: upstart
     - watch:
       - file: app-{{ app }}-uwsgi-upstart-config
+      - file: app-{{ app }}-uwsgi-config
 
+app-{{ app }}-uwsgi-graceful-restart:
+  cmd.run:
+    - name: echo c > {{ uwsgi_master_fifo }}
+    - timeout: 5
+    - watch:
+      - pip: app-{{ app }}-virtualenv-pip
+    - require:
+      - service: app-{{ app }}-uwsgi-upstart-run
 
 {% endwith %}
 {% endfor %}
