@@ -135,7 +135,7 @@ app-{{ app }}-virtualenv:
     - name: {{ virtualenv }}
     - use_wheel: True
     - require:
-        - pkg: python-virtualenv
+      - pkg: python-virtualenv
 
 # install dependencies
 # TODO: declare this in app manifest
@@ -179,6 +179,14 @@ app-{{ app }}-virtualenv-pip:
         {%- if pip_requirements %}
         - pip: app-{{ app }}-virtualenv-pip-package
         {%- endif %}
+
+app-{{ app }}-virtualenv-pip-permissions:
+  file.directory:
+    - name: {{ virtualenv }}
+    - group: {{ user }}
+    - mode: 750
+    - require:
+      - pip: app-{{ app }}-virtualenv-pip
 
 # create uwsgi configuration file
 app-{{ app }}-uwsgi-config:
