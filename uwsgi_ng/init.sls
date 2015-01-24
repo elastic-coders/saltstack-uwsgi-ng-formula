@@ -55,7 +55,7 @@ uwsgi-installed:
    {{ get_app_uwsgi_control_dir(app) ~ "/master.fifo" }}
 {%- endmacro %}
 {% macro get_app_uwsgi_socket(app) -%}
-   {{ settings.apps.managed.get(app).get('uwsgi_socket', get_app_uwsgi_control_dir(app) ~ "/uwsgi.sock") }}
+   {{ settings.apps.managed.get(app).get('uwsgi_socket', get_app_home_dir(app) ~ "/uwsgi.sock") }}
 {%- endmacro %}
 {% macro get_app_uwsgi_pidfile(app) -%}
    {{ settings.apps.managed.get(app).get('uwsgi_pidfile', get_app_uwsgi_control_dir(app) ~ "/uwsgi.pid") }}
@@ -135,7 +135,7 @@ app-{{ app }}-virtualenv:
     - name: {{ virtualenv }}
     - use_wheel: True
     - require:
-        - pkg: python-virtualenv
+      - pkg: python-virtualenv
 
 # install dependencies
 # TODO: declare this in app manifest
@@ -143,14 +143,6 @@ app-{{ app }}-libraries:
   pkg.installed:
     - names:
       - libjpeg62
-
-# uninstall app in virtualenv XXX maybe not needed
-app-{{ app }}-virtualenv-pip-uninstall:
-   pip.removed:
-     - name: {{ package_name }}
-     - bin_env: {{ virtualenv }}
-     - require:
-       - virtualenv: app-{{ app }}-virtualenv
 
 {%- if pip_requirements %}
 app-{{ app }}-virtualenv-pip-package:
@@ -166,7 +158,6 @@ app-{{ app }}-virtualenv-pip-package:
         - pkg: uwsgi-installed
         - file: app-{{ app }}-dist-extracted
         - pkg: app-{{ app }}-libraries
-        - pip: app-{{ app }}-virtualenv-pip-uninstall
 {% endif %}
 
 app-{{ app }}-virtualenv-pip:
@@ -185,10 +176,17 @@ app-{{ app }}-virtualenv-pip:
         - pkg: uwsgi-installed
         - file: app-{{ app }}-dist-extracted
         - pkg: app-{{ app }}-libraries
-        - pip: app-{{ app }}-virtualenv-pip-uninstall
         {%- if pip_requirements %}
         - pip: app-{{ app }}-virtualenv-pip-package
         {%- endif %}
+
+app-{{ app }}-virtualenv-pip-permissions:
+  file.directory:
+    - name: {{ virtualenv }}
+    - group: {{ user }}
+    - mode: 750
+    - require:
+      - pip: app-{{ app }}-virtualenv-pip
 
 # create uwsgi configuration file
 app-{{ app }}-uwsgi-config:
@@ -253,13 +251,10 @@ app-{{ app }}-static-django-permissions:
     - require:
       - cmd: app-{{ app }}-static-django
 
-# make media and data dirs
-app-{{ app }}-media-data-dirs:
+app-{{ app }}-data-dir:
   file.directory:
-    - names:
-      - {{ media_dir }}
-      - {{ data_dir }}
-    - group: {{ nginx.lookup.webuser }}
+    - name: {{ data_dir }}
+    - group: {{ user }}
     - user: {{ user }}
     - dir_mode: 750
     - file_mode: 640
@@ -268,16 +263,13 @@ app-{{ app }}-media-data-dirs:
       - group
       - mode
 
-# make uwsgi socket writable by nginx
-app-{{ app }}-uwsgi-socket:
+app-{{ app }}-media-dir:
   file.directory:
-    - names:
-      - {{ media_dir }}
-      - {{ data_dir }}
+    - name: {{ media_dir }}
     - group: {{ nginx.lookup.webuser }}
     - user: {{ user }}
-    - dir_mode: 750
-    - file_mode: 640
+    - dir_mode: 770
+    - file_mode: 660
     - recurse:
       - user
       - group
@@ -286,13 +278,6 @@ app-{{ app }}-uwsgi-socket:
 app-{{ app }}-home-dir-read:
   file.directory:
     - name: {{ home_dir }}
-    - user: {{ user }}
-    - group:  {{ nginx.lookup.webuser }}
-    - dir_mode: 750
-
-app-{{ app }}-control-dir-read:
-  file.directory:
-    - name: {{ uwsgi_control_dir }}
     - user: {{ user }}
     - group:  {{ nginx.lookup.webuser }}
     - dir_mode: 750
@@ -321,9 +306,9 @@ app-{{ app }}-uwsgi-upstart-config:
     - template: jinja
     - require:
         - pip: app-{{ app }}-virtualenv-pip
+        - file: app-{{ app }}-uwsgi-config
     - defaults:
         uwsgi_config: {{ uwsgi_config }}
-
 
 app-{{ app }}-uwsgi-upstart-run:
   service.running:
@@ -331,7 +316,16 @@ app-{{ app }}-uwsgi-upstart-run:
     - provider: upstart
     - watch:
       - file: app-{{ app }}-uwsgi-upstart-config
+      - file: app-{{ app }}-uwsgi-config
 
+app-{{ app }}-uwsgi-graceful-restart:
+  cmd.run:
+    - name: echo c > {{ uwsgi_master_fifo }}
+    - timeout: 5
+    - watch:
+      - pip: app-{{ app }}-virtualenv-pip
+    - require:
+      - service: app-{{ app }}-uwsgi-upstart-run
 
 {% endwith %}
 {% endfor %}
