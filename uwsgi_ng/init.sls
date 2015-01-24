@@ -55,7 +55,7 @@ uwsgi-installed:
    {{ get_app_uwsgi_control_dir(app) ~ "/master.fifo" }}
 {%- endmacro %}
 {% macro get_app_uwsgi_socket(app) -%}
-   {{ settings.apps.managed.get(app).get('uwsgi_socket', get_app_uwsgi_control_dir(app) ~ "/uwsgi.sock") }}
+   {{ settings.apps.managed.get(app).get('uwsgi_socket', get_app_home_dir(app) ~ "/uwsgi.sock") }}
 {%- endmacro %}
 {% macro get_app_uwsgi_pidfile(app) -%}
    {{ settings.apps.managed.get(app).get('uwsgi_pidfile', get_app_uwsgi_control_dir(app) ~ "/uwsgi.pid") }}
