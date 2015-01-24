@@ -274,13 +274,6 @@ app-{{ app }}-home-dir-read:
     - group:  {{ nginx.lookup.webuser }}
     - dir_mode: 750
 
-app-{{ app }}-control-dir-read:
-  file.directory:
-    - name: {{ uwsgi_control_dir }}
-    - user: {{ user }}
-    - group:  {{ nginx.lookup.webuser }}
-    - dir_mode: 750
-
 app-{{ app }}-manage-py:
   file.managed:
     - name: {{ home_dir }}/manage.sh
