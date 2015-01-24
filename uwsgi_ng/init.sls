@@ -144,14 +144,6 @@ app-{{ app }}-libraries:
     - names:
       - libjpeg62
 
-# uninstall app in virtualenv XXX maybe not needed
-app-{{ app }}-virtualenv-pip-uninstall:
-   pip.removed:
-     - name: {{ package_name }}
-     - bin_env: {{ virtualenv }}
-     - require:
-       - virtualenv: app-{{ app }}-virtualenv
-
 {%- if pip_requirements %}
 app-{{ app }}-virtualenv-pip-package:
   pip.installed:
@@ -166,7 +158,6 @@ app-{{ app }}-virtualenv-pip-package:
         - pkg: uwsgi-installed
         - file: app-{{ app }}-dist-extracted
         - pkg: app-{{ app }}-libraries
-        - pip: app-{{ app }}-virtualenv-pip-uninstall
 {% endif %}
 
 app-{{ app }}-virtualenv-pip:
@@ -185,7 +176,6 @@ app-{{ app }}-virtualenv-pip:
         - pkg: uwsgi-installed
         - file: app-{{ app }}-dist-extracted
         - pkg: app-{{ app }}-libraries
-        - pip: app-{{ app }}-virtualenv-pip-uninstall
         {%- if pip_requirements %}
         - pip: app-{{ app }}-virtualenv-pip-package
         {%- endif %}
