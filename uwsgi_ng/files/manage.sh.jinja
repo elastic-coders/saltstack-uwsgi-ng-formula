@@ -3,6 +3,6 @@ export DJANGO_SETTINGS_MODULE="{{ django_settings }}"
 {% for item in env -%}
 {% for key, val in item.items() -%}
 export {{ key }}="{{ val }}"{# TODO: escape quotes #}
-{%- endfor %}
-{%- endfor %}
+{% endfor -%}
+{% endfor -%}
 exec sudo -u {{ user }} -g {{ group }} --preserve-env {{ virtualenv }}/bin/django-admin.py "$@"

@@ -12,7 +12,7 @@ uid={{ uwsgi_user }}
 gid={{ uwsgi_group }}
 env= DJANGO_SETTINGS_MODULE={{ django_settings }}
 {% for item in env -%}
- {% for key, val in item.items() -%}
-  env= {{ key }}={{ val }}
- {%- endfor %}
+{% for key, val in item.items() -%}
+env= {{ key }}={{ val }}
+{% endfor -%}
 {%- endfor %}
