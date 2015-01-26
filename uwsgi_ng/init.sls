@@ -153,6 +153,7 @@ app-{{ app }}-virtualenv-pip-package:
     - use_wheel: True
     - bin_env: {{ virtualenv }}
     - use_vt: True
+    - upgrade: True
     - require:
         - virtualenv: app-{{ app }}-virtualenv
         - pkg: uwsgi-installed
@@ -165,6 +166,8 @@ app-{{ app }}-virtualenv-pip:
     - name: {{ package_name }}
     {%- if pip_requirements %}
     - requirements: {{ pip_requirements }}
+    {%- else %}
+    - upgrade: True
     {%- endif %}
     - find_links: {{ wheelhouse }}
     - no_index: True
